@@ -6,13 +6,13 @@ PANEL_TITLE = "3D户型图"
 PANEL_ICON = "mdi:floor-plan"
 PANEL_NAME = "ha3d-panel"
 
-CONF_FLOOR_PLAN = "floor_plan"
 CONF_AREAS = "areas"
 CONF_ENTITY_ID = "entity_id"
 CONF_POSITION = "position"
 CONF_TYPE = "type"
+CONF_IMAGE_ON = "image_on"
+CONF_IMAGE_OFF = "image_off"
 
 DEFAULT_CONFIG = {
-    CONF_FLOOR_PLAN: "",
     CONF_AREAS: []
 } 

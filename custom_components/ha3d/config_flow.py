@@ -3,7 +3,7 @@ import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from .const import DOMAIN, CONF_FLOOR_PLAN, DEFAULT_CONFIG
+from .const import DOMAIN, CONF_AREAS, DEFAULT_CONFIG
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,15 +20,16 @@ class Ha3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             return self.async_create_entry(
-                title="3D Floor Plan",
-                data=user_input or DEFAULT_CONFIG,
+                title="3D户型图",
+                data=DEFAULT_CONFIG,
             )
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({
-                vol.Required(CONF_FLOOR_PLAN): str,
-            }),
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "images_path": "/config/www/home/"
+            }
         )
 
     @staticmethod

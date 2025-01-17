@@ -41,18 +41,15 @@ class Ha3dPanel extends LitElement {
       .floor-plan {
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        position: relative;
       }
-      .area {
+      .area-image {
         position: absolute;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-      .area:hover {
-        filter: brightness(1.2);
-      }
-      .area.active {
-        filter: brightness(1.5);
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        transition: opacity 0.3s ease;
       }
       ha-icon-button {
         color: var(--primary-text-color);
@@ -68,7 +65,6 @@ class Ha3dPanel extends LitElement {
   }
 
   async _loadConfig() {
-    // 从后端加载配置
     const response = await fetch(`/api/ha3d/config`);
     this.config = await response.json();
     this.areas = this.config.areas || [];
@@ -119,48 +115,23 @@ class Ha3dPanel extends LitElement {
         ></ha-icon-button>
       </div>
       <div class="container">
-        <img
-          class="floor-plan"
-          src=${this.config.floor_plan}
-          @load=${this._handleImageLoad}
-        />
-        ${this.areas.map(
-          (area) => html`
-            <div
-              class="area ${this._getAreaState(area)}"
-              style=${this._getAreaStyle(area)}
-              @click=${() => this._handleAreaClick(area)}
-            >
-              ${area.name || ''}
-            </div>
-          `
-        )}
+        <div class="floor-plan">
+          ${this.areas.map(area => {
+            const stateObj = this.hass.states[area.entity_id];
+            const isOn = stateObj?.state === 'on';
+            return html`
+              <img
+                class="area-image"
+                src=${isOn ? `/local/home/${area.image_on}` : `/local/home/${area.image_off}`}
+                style="opacity: ${isOn ? 1 : 0.7};"
+                @click=${() => this._handleAreaClick(area)}
+              />
+            `;
+          })}
+        </div>
       </div>
     `;
   }
-
-  _getAreaState(area) {
-    if (!area.entity_id) return '';
-    const stateObj = this.hass.states[area.entity_id];
-    return stateObj?.state === 'on' ? 'active' : '';
-  }
-
-  _getAreaStyle(area) {
-    return `
-      left: ${area.position.x}%;
-      top: ${area.position.y}%;
-      width: ${area.position.width}%;
-      height: ${area.position.height}%;
-      background: ${this._getAreaBackground(area)};
-    `;
-  }
-
-  _getAreaBackground(area) {
-    const stateObj = this.hass.states[area.entity_id];
-    return stateObj?.state === 'on'
-      ? 'rgba(255, 255, 255, 0.3)'
-      : 'rgba(0, 0, 0, 0.2)';
-  }
 }
 
-customElements.define("ha3d-panel", Ha3dPanel); 
+customElements.define("ha3d-panel", Ha3dPanel);
