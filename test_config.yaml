@@ -1,0 +1,16 @@
+title: 测试户型图
+areas:
+  - name: 客厅灯
+    entity_id: light.living_room
+    position:
+      x: 20
+      y: 30
+      width: 30
+      height: 20
+  - name: 卧室灯
+    entity_id: light.bedroom
+    position:
+      x: 60
+      y: 30
+      width: 30
+      height: 20 

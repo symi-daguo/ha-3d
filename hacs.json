@@ -1,0 +1,10 @@
+{
+  "name": "3D Floor Plan",
+  "render_readme": true,
+  "filename": "ha3d.js",
+  "country": ["CN"],
+  "language": ["zh-Hans"],
+  "domains": ["ha3d"],
+  "homeassistant": "2023.8.0",
+  "persistent_directory": "custom_components/ha3d"
+}
