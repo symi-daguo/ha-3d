@@ -29,39 +29,33 @@ CONFIG_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
-async def copy_example_images(hass: HomeAssistant):
-    """Copy example images to www directory."""
-    www_dir = hass.config.path("www")
-    home_dir = os.path.join(www_dir, "home")
-    os.makedirs(home_dir, exist_ok=True)
-
-    # 复制示例图片
-    current_dir = os.path.dirname(__file__)
-    images_dir = os.path.join(current_dir, "images")
-    
-    if os.path.exists(images_dir):
-        for image in os.listdir(images_dir):
-            src = os.path.join(images_dir, image)
-            dst = os.path.join(home_dir, image)
-            if not os.path.exists(dst):
-                shutil.copy2(src, dst)
-                _LOGGER.info(f"Copied example image: {image}")
-
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the HA3D integration."""
     hass.data[DOMAIN] = {}
     domain_config = config.get(DOMAIN, {})
 
+    # 确保目录存在
+    www_dir = hass.config.path("www")
+    ha3d_dir = os.path.join(www_dir, "ha3d")
+    os.makedirs(ha3d_dir, exist_ok=True)
+
+    # 复制前端文件
+    current_dir = os.path.dirname(__file__)
+    frontend_dir = os.path.join(current_dir, "frontend")
+    for file in ["ha3d-panel.js", "ha3d-embed.js", "ha3d-panel.html"]:
+        src = os.path.join(frontend_dir, file)
+        dst = os.path.join(ha3d_dir, file)
+        if os.path.exists(src):
+            shutil.copy2(src, dst)
+
     # 注册面板
-    panel_url = domain_config.get(CONF_EXTERNAL_URL, "/ha3d/panel")
-    
     hass.components.frontend.async_register_built_in_panel(
         "iframe",
         "3D户型图",
         "mdi:floor-plan",
         DOMAIN,
-        {"url": panel_url},
-        require_admin=True,
+        {"url": "/local/ha3d/ha3d-panel.html"},
+        require_admin=False,
     )
 
     # 注册视图
@@ -83,7 +77,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 class Ha3dPanelView(HomeAssistantView):
     """Serve the frontend."""
 
-    requires_auth = True
+    requires_auth = False  # 允许未认证访问
     url = "/ha3d/panel"
     name = "ha3d:panel"
 
@@ -96,6 +90,7 @@ class Ha3dUploadView(HomeAssistantView):
 
     url = "/api/ha3d/upload"
     name = "api:ha3d:upload"
+    requires_auth = True
 
     async def post(self, request):
         """Handle POST."""
@@ -131,6 +126,7 @@ class Ha3dConfigView(HomeAssistantView):
 
     url = "/api/ha3d/config"
     name = "api:ha3d:config"
+    requires_auth = True
 
     def __init__(self, config):
         """Initialize the config view."""
@@ -150,7 +146,7 @@ class Ha3dConfigView(HomeAssistantView):
             return web.Response(
                 status=400,
                 text=f"Failed to update config: {str(e)}"
-            ) 
+            )
 
 class Ha3dEntityView(HomeAssistantView):
     """Handle entity state and service calls."""

@@ -9,6 +9,9 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
+            font-family: var(--paper-font-body1_-_font-family);
+            background-color: var(--primary-background-color);
+            color: var(--primary-text-color);
         }
         #container {
             flex: 1;
@@ -40,6 +43,8 @@
             overflow: auto;
         }
     </style>
+    <script type="module" src="/local/ha3d/ha3d-embed.js"></script>
+    <script type="module" src="/local/ha3d/ha3d-panel.js"></script>
 </head>
 <body>
     <div id="container">
@@ -50,66 +55,56 @@
         <ha3d-config-editor></ha3d-config-editor>
     </div>
 
-    <script type="module" src="/local/ha3d/ha3d-panel.js"></script>
     <script>
-        class Ha3dPanel extends HTMLElement {
-            constructor() {
-                super();
-                this._config = null;
-                this._areas = [];
-                this._backgroundImage = null;
-            }
+        // 获取认证令牌
+        const authToken = localStorage.getItem('hassTokens') 
+            ? JSON.parse(localStorage.getItem('hassTokens')).access_token 
+            : '';
 
-            connectedCallback() {
-                this._loadConfig();
-                this._setupEventListeners();
-            }
-
-            async _loadConfig() {
-                try {
-                    const response = await fetch('/api/ha3d/config');
-                    const config = await response.json();
-                    this._config = config;
-                    this._areas = config.areas || [];
-                    this._backgroundImage = config.background_image;
-                    this._updateDisplay();
-                } catch (error) {
-                    console.error('Error loading config:', error);
-                }
-            }
-
-            _setupEventListeners() {
-                window.addEventListener('ha3d-config-updated', () => {
-                    this._loadConfig();
-                });
-            }
-
-            _updateDisplay() {
-                // 更新背景图
-                const background = document.getElementById('background');
-                if (this._backgroundImage) {
-                    background.src = this._backgroundImage;
-                }
-
-                // 更新区域图片
-                const areasContainer = document.getElementById('areas');
-                areasContainer.innerHTML = '';
-
-                this._areas.forEach(area => {
-                    if (area.entity_id) {
-                        const img = document.createElement('img');
-                        img.className = 'area-image';
-                        img.src = `/local/home/${area.image_off}`;
-                        img.dataset.entityId = area.entity_id;
-                        img.dataset.imageOn = area.image_on;
-                        img.dataset.imageOff = area.image_off;
-                        areasContainer.appendChild(img);
+        // 初始化面板
+        window.addEventListener('load', () => {
+            const panel = document.createElement('ha3d-panel');
+            panel.hass = {
+                connection: {
+                    subscribeEvents: (callback, eventType) => {
+                        // WebSocket 订阅
+                        const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/websocket`);
+                        
+                        ws.onopen = () => {
+                            ws.send(JSON.stringify({
+                                type: "auth",
+                                access_token: authToken
+                            }));
+                        };
+                        
+                        ws.onmessage = (event) => {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'event' && data.event.event_type === eventType) {
+                                callback(data.event);
+                            }
+                        };
+                        
+                        return () => ws.close();
                     }
-                });
-            }
-        }
-
-        customElements.define('ha3d-panel', Ha3dPanel);
+                },
+                callService: async (domain, service, data) => {
+                    try {
+                        const response = await fetch(`/api/services/${domain}/${service}`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(data)
+                        });
+                        return await response.json();
+                    } catch (error) {
+                        console.error('Error calling service:', error);
+                    }
+                }
+            };
+            document.body.appendChild(panel);
+        });
     </script>
 </body>
 </html> 
