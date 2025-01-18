@@ -3,6 +3,7 @@ import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.const import CONF_URL
 from .const import DOMAIN, CONF_EXTERNAL_URL
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,24 +19,27 @@ class Ha3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            # 验证URL格式
-            if not user_input[CONF_EXTERNAL_URL].startswith(('http://', 'https://')):
+            external_url = user_input.get(CONF_EXTERNAL_URL)
+            
+            if not external_url:
+                errors[CONF_EXTERNAL_URL] = "empty_url"
+            elif not external_url.startswith(('http://', 'https://')):
                 errors[CONF_EXTERNAL_URL] = "invalid_url"
             else:
+                _LOGGER.info(f"Creating entry with URL: {external_url}")
                 return self.async_create_entry(
                     title="3D户型图",
-                    data=user_input,
+                    data={
+                        CONF_EXTERNAL_URL: external_url
+                    }
                 )
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
-                vol.Required(CONF_EXTERNAL_URL, description={"suggested_value": "http://"}): str,
+                vol.Required(CONF_EXTERNAL_URL): str,
             }),
-            errors=errors,
-            description_placeholders={
-                "default_url": "http://your-3d-model-url",
-            }
+            errors=errors
         )
 
     @staticmethod
@@ -53,8 +57,22 @@ class Ha3dOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
+        errors = {}
+
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            external_url = user_input.get(CONF_EXTERNAL_URL)
+            
+            if not external_url:
+                errors[CONF_EXTERNAL_URL] = "empty_url"
+            elif not external_url.startswith(('http://', 'https://')):
+                errors[CONF_EXTERNAL_URL] = "invalid_url"
+            else:
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        CONF_EXTERNAL_URL: external_url
+                    }
+                )
 
         return self.async_show_form(
             step_id="init",
@@ -63,5 +81,6 @@ class Ha3dOptionsFlow(config_entries.OptionsFlow):
                     CONF_EXTERNAL_URL,
                     default=self.config_entry.data.get(CONF_EXTERNAL_URL, "")
                 ): str,
-            })
+            }),
+            errors=errors
         ) 
