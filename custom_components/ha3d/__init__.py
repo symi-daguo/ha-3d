@@ -26,14 +26,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # 注册面板
     external_url = entry.data.get(CONF_EXTERNAL_URL)
     
-    hass.components.frontend.async_register_built_in_panel(
-        "iframe",
-        "3D户型图",
-        "mdi:floor-plan",
-        DOMAIN,
-        {"url": external_url},
-        require_admin=False,
-    )
+    # 确保URL是有效的
+    if not external_url:
+        _LOGGER.error("No external URL configured")
+        return False
+
+    # 注册面板
+    try:
+        hass.components.frontend.async_register_built_in_panel(
+            "iframe",
+            "3D户型图",
+            "mdi:floor-plan",
+            DOMAIN,
+            {
+                "url": external_url,
+                "trust_external": True,  # 允许加载外部URL
+                "allow": "fullscreen"  # 允许全屏
+            },
+            require_admin=False,
+        )
+        _LOGGER.info(f"Successfully registered panel with URL: {external_url}")
+    except Exception as e:
+        _LOGGER.error(f"Failed to register panel: {str(e)}")
+        return False
 
     # 注册视图
     hass.http.register_view(Ha3dEntityView(hass))
@@ -43,7 +58,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     # 移除面板
-    hass.components.frontend.async_remove_panel(DOMAIN)
+    try:
+        hass.components.frontend.async_remove_panel(DOMAIN)
+        _LOGGER.info("Successfully removed panel")
+    except Exception as e:
+        _LOGGER.error(f"Failed to remove panel: {str(e)}")
     return True
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
