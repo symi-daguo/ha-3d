@@ -1,18 +1,11 @@
 """Constants for the HA3D integration."""
 DOMAIN = "ha3d"
 VERSION = "1.0.0"
-PANEL_URL = "/api/panel_custom/ha3d"
-PANEL_TITLE = "3D户型图"
-PANEL_ICON = "mdi:floor-plan"
-PANEL_NAME = "ha3d-panel"
 
-CONF_AREAS = "areas"
-CONF_ENTITY_ID = "entity_id"
-CONF_POSITION = "position"
-CONF_TYPE = "type"
-CONF_IMAGE_ON = "image_on"
-CONF_IMAGE_OFF = "image_off"
+CONF_EXTERNAL_URL = "external_url"
 
-DEFAULT_CONFIG = {
-    CONF_AREAS: []
-} 
+# 翻译字符串
+TITLE = "3D户型图"
+STEP_USER_TITLE = "配置3D户型图"
+STEP_USER_DESCRIPTION = "请输入您的3D模型URL地址"
+ERROR_INVALID_URL = "请输入有效的URL地址（以http://或https://开头）" 

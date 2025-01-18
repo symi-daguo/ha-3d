@@ -1,0 +1,27 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "配置3D户型图",
+                "description": "请输入您的3D模型URL地址",
+                "data": {
+                    "external_url": "3D模型URL"
+                }
+            }
+        },
+        "error": {
+            "invalid_url": "请输入有效的URL地址（以http://或https://开头）"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "修改3D户型图配置",
+                "description": "您可以修改3D模型的URL地址",
+                "data": {
+                    "external_url": "3D模型URL"
+                }
+            }
+        }
+    }
+} 
