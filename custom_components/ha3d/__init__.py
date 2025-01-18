@@ -26,14 +26,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HA3D from a config entry."""
     _LOGGER.debug("Setting up HA3D integration with entry: %s", entry.as_dict())
     
-    # 注册面板
-    external_url = entry.data.get(CONF_EXTERNAL_URL)
+    # 获取配置数据
+    config_data = dict(entry.data)
+    
+    # 确保areas字段存在
+    if "areas" not in config_data:
+        config_data["areas"] = []
+        hass.config_entries.async_update_entry(entry, data=config_data)
+    
+    # 获取外部URL
+    external_url = config_data.get(CONF_EXTERNAL_URL)
     _LOGGER.debug("Retrieved external URL from config entry: %s", external_url)
     
     # 确保URL是有效的
     if not external_url:
-        _LOGGER.error("No external URL configured in entry data: %s", entry.data)
+        _LOGGER.error("No external URL configured in entry data: %s", config_data)
         return False
+
+    # 保存配置数据到hass.data
+    hass.data[DOMAIN] = {
+        "config": config_data
+    }
 
     # 注册面板
     try:

@@ -30,7 +30,8 @@ class Ha3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title="3D户型图",
                     data={
-                        CONF_EXTERNAL_URL: external_url
+                        CONF_EXTERNAL_URL: external_url,
+                        "areas": []  # 初始化空的区域列表
                     }
                 )
 
@@ -67,12 +68,17 @@ class Ha3dOptionsFlow(config_entries.OptionsFlow):
             elif not external_url.startswith(('http://', 'https://')):
                 errors[CONF_EXTERNAL_URL] = "invalid_url"
             else:
-                return self.async_create_entry(
-                    title="",
-                    data={
-                        CONF_EXTERNAL_URL: external_url
-                    }
+                # 保持现有的areas数据
+                current_data = dict(self.config_entry.data)
+                current_data[CONF_EXTERNAL_URL] = external_url
+                
+                # 更新配置项
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data=current_data
                 )
+                
+                return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
             step_id="init",
