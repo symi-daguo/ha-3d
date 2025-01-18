@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HA3D Entity Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        #setup {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        #setup.hidden {
+            display: none;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #container {
+            position: relative;
+            min-height: 600px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: none;
+        }
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background: #fff;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #f0f0f0;
+        }
+        .filter-group {
+            margin: 10px 0;
+        }
+        .filter-group label {
+            margin-right: 10px;
+        }
+        #connect-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+        }
+        #connect-btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="setup">
+        <h2>配置连接</h2>
+        <div class="input-group">
+            <label for="ha-url">Home Assistant URL:</label>
+            <input type="text" id="ha-url" placeholder="例如: http://homeassistant.local:8123">
+        </div>
+        <div class="input-group">
+            <label for="ha-token">长期访问令牌:</label>
+            <input type="password" id="ha-token" placeholder="输入你的长期访问令牌">
+        </div>
+        <button id="connect-btn" onclick="connect()">连接</button>
+        <p>
+            <small>
+                如何获取长期访问令牌：<br>
+                1. 在Home Assistant中点击你的用户名<br>
+                2. 滚动到底部的"长期访问令牌"<br>
+                3. 点击"创建令牌"<br>
+                4. 给令牌起个名字（如"ha3d"）<br>
+                5. 复制生成的令牌
+            </small>
+        </p>
+    </div>
+
+    <div class="controls">
+        <div class="filter-group">
+            <label>实体类型过滤：</label>
+            <button onclick="filterEntities('light')">灯光</button>
+            <button onclick="filterEntities('switch')">开关</button>
+            <button onclick="filterEntities('sensor')">传感器</button>
+            <button onclick="filterEntities('all')">全部</button>
+        </div>
+    </div>
+    <div id="container"></div>
+
+    <script src="ha3d-embed.js"></script>
+    <script>
+        let ha3d = null;
+        const container = document.getElementById('container');
+        const controls = document.querySelector('.controls');
+        const setup = document.getElementById('setup');
+
+        function connect() {
+            const url = document.getElementById('ha-url').value.trim();
+            const token = document.getElementById('ha-token').value.trim();
+
+            if (!url || !token) {
+                alert('请输入Home Assistant URL和访问令牌');
+                return;
+            }
+
+            // 初始化 Ha3dEmbed
+            ha3d = new Ha3dEmbed({
+                baseUrl: url,
+                token: token
+            });
+
+            // 测试连接
+            ha3d.getAllEntities().then(entities => {
+                if (entities && entities.length > 0) {
+                    setup.classList.add('hidden');
+                    controls.style.display = 'block';
+                    filterEntities('all');
+                } else {
+                    alert('连接失败，请检查URL和令牌是否正确');
+                }
+            }).catch(error => {
+                alert('连接失败: ' + error.message);
+            });
+        }
+
+        // 过滤实体
+        function filterEntities(type) {
+            if (!ha3d) return;
+            
+            // 清空容器
+            container.innerHTML = '';
+            
+            if (type === 'all') {
+                ha3d.autoAddEntities(container);
+            } else {
+                ha3d.autoAddEntities(container, (entity) => {
+                    return entity.entity_id.startsWith(type + '.');
+                });
+            }
+        }
+
+        // 添加拖拽支持
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const entityId = e.dataTransfer.getData('text/plain');
+            const element = ha3d?.entities.get(entityId);
+            if (element) {
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                element.style.left = x + 'px';
+                element.style.top = y + 'px';
+            }
+        });
+    </script>
+</body>
+</html> 

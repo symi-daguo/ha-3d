@@ -1,23 +1,22 @@
 import { LitElement, html, css } from "lit";
-import { mdiFullscreen, mdiFullscreenExit } from "@mdi/js";
+import { mdiPlus, mdiDelete, mdiContentSave } from "@mdi/js";
 
 class Ha3dPanel extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
       narrow: { type: Boolean },
+      route: { type: Object },
       panel: { type: Object },
-      config: { type: Object },
-      areas: { type: Array },
-      isFullscreen: { type: Boolean },
     };
   }
 
   constructor() {
     super();
-    this.areas = [];
-    this.isFullscreen = false;
-    this._initialized = false;
+    this._config = null;
+    this._areas = [];
+    this._backgroundImage = null;
+    this._selectedArea = null;
   }
 
   static get styles() {
@@ -29,19 +28,17 @@ class Ha3dPanel extends LitElement {
       }
       .container {
         flex: 1;
+        display: flex;
         position: relative;
         overflow: hidden;
       }
-      .toolbar {
-        display: flex;
-        justify-content: flex-end;
-        padding: 8px;
-        background: var(--app-header-background-color);
-      }
-      .floor-plan {
+      #background {
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
-        position: relative;
+        object-fit: contain;
       }
       .area-image {
         position: absolute;
@@ -49,88 +46,113 @@ class Ha3dPanel extends LitElement {
         left: 0;
         width: 100%;
         height: 100%;
-        transition: opacity 0.3s ease;
+        object-fit: contain;
+        pointer-events: none;
       }
-      ha-icon-button {
-        color: var(--primary-text-color);
+      .editor {
+        flex: 1;
+        padding: 16px;
+        overflow: auto;
       }
     `;
-  }
-
-  async firstUpdated() {
-    if (!this._initialized) {
-      await this._loadConfig();
-      this._initialized = true;
-    }
-  }
-
-  async _loadConfig() {
-    const response = await fetch(`/api/ha3d/config`);
-    this.config = await response.json();
-    this.areas = this.config.areas || [];
-  }
-
-  _toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      this.renderRoot.querySelector('.container').requestFullscreen();
-      this.isFullscreen = true;
-    } else {
-      document.exitFullscreen();
-      this.isFullscreen = false;
-    }
-  }
-
-  _handleAreaClick(area) {
-    if (!area.entity_id) return;
-    
-    const stateObj = this.hass.states[area.entity_id];
-    if (!stateObj) return;
-
-    let service;
-    switch(stateObj.state) {
-      case 'on':
-        service = 'turn_off';
-        break;
-      case 'off':
-        service = 'turn_on';
-        break;
-      default:
-        return;
-    }
-
-    const [domain] = area.entity_id.split('.');
-    this.hass.callService(domain, service, {
-      entity_id: area.entity_id,
-    });
   }
 
   render() {
-    if (!this.config) return html`<div>Loading...</div>`;
-
     return html`
-      <div class="toolbar">
-        <ha-icon-button
-          .path=${this.isFullscreen ? mdiFullscreenExit : mdiFullscreen}
-          @click=${this._toggleFullscreen}
-        ></ha-icon-button>
-      </div>
       <div class="container">
-        <div class="floor-plan">
-          ${this.areas.map(area => {
-            const stateObj = this.hass.states[area.entity_id];
-            const isOn = stateObj?.state === 'on';
-            return html`
-              <img
-                class="area-image"
-                src=${isOn ? `/local/home/${area.image_on}` : `/local/home/${area.image_off}`}
-                style="opacity: ${isOn ? 1 : 0.7};"
-                @click=${() => this._handleAreaClick(area)}
-              />
-            `;
-          })}
+        ${this._backgroundImage
+          ? html`<img id="background" src="${this._backgroundImage}" />`
+          : ""}
+        <div id="areas">
+          ${this._areas.map(
+            (area) =>
+              html`
+                <img
+                  class="area-image"
+                  src="/local/home/${area.image_off}"
+                  data-entity-id="${area.entity_id}"
+                  data-image-on="${area.image_on}"
+                  data-image-off="${area.image_off}"
+                />
+              `
+          )}
         </div>
       </div>
+      <div class="editor">
+        <ha3d-config-editor
+          .hass=${this.hass}
+          @config-changed=${this._handleConfigChanged}
+        ></ha3d-config-editor>
+      </div>
     `;
+  }
+
+  firstUpdated() {
+    this._loadConfig();
+    this._setupEventListeners();
+  }
+
+  async _loadConfig() {
+    try {
+      const response = await fetch("/api/ha3d/config");
+      const config = await response.json();
+      this._config = config;
+      this._areas = config.areas || [];
+      this._backgroundImage = config.background_image;
+      this.requestUpdate();
+    } catch (error) {
+      console.error("Error loading config:", error);
+    }
+  }
+
+  _setupEventListeners() {
+    this.addEventListener("click", (e) => {
+      const area = e.target.closest("[data-entity-id]");
+      if (area) {
+        const entityId = area.dataset.entityId;
+        this._toggleEntity(entityId);
+      }
+    });
+
+    if (this.hass) {
+      this.hass.connection.subscribeEvents((event) => {
+        if (event.data.entity_id) {
+          this._updateAreaState(event.data.entity_id);
+        }
+      }, "state_changed");
+    }
+  }
+
+  _handleConfigChanged(e) {
+    this._loadConfig();
+  }
+
+  async _toggleEntity(entityId) {
+    if (this.hass) {
+      const state = this.hass.states[entityId];
+      if (state) {
+        const service = state.state === "on" ? "turn_off" : "turn_on";
+        const [domain] = entityId.split(".");
+        await this.hass.callService(domain, service, {
+          entity_id: entityId,
+        });
+      }
+    }
+  }
+
+  _updateAreaState(entityId) {
+    const area = this._areas.find((a) => a.entity_id === entityId);
+    if (area) {
+      const state = this.hass.states[entityId];
+      const img = this.renderRoot.querySelector(
+        `[data-entity-id="${entityId}"]`
+      );
+      if (img) {
+        img.src = `/local/home/${
+          state.state === "on" ? area.image_on : area.image_off
+        }`;
+      }
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 import { LitElement, html, css } from "lit";
-import { mdiPlus, mdiDelete, mdiContentSave } from "@mdi/js";
+import { mdiPlus, mdiDelete, mdiContentSave, mdiImage } from "@mdi/js";
 
 class Ha3dConfigEditor extends LitElement {
   static get properties() {
@@ -8,6 +8,7 @@ class Ha3dConfigEditor extends LitElement {
       areas: { type: Array },
       selectedArea: { type: Object },
       uploadStatus: { type: String },
+      backgroundImage: { type: String },
     };
   }
 
@@ -16,6 +17,7 @@ class Ha3dConfigEditor extends LitElement {
     this.areas = [];
     this.selectedArea = null;
     this.uploadStatus = '';
+    this.backgroundImage = '/local/home/background.png';
   }
 
   static get styles() {
@@ -28,8 +30,14 @@ class Ha3dConfigEditor extends LitElement {
         display: flex;
         gap: 24px;
       }
-      .area-list {
+      .sidebar {
         width: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .background-section,
+      .area-list {
         background: var(--card-background-color);
         border-radius: 8px;
         padding: 16px;
@@ -69,6 +77,7 @@ class Ha3dConfigEditor extends LitElement {
         padding: 16px;
         text-align: center;
         margin-bottom: 16px;
+        cursor: pointer;
       }
       .file-upload.drag-over {
         border-color: var(--primary-color);
@@ -83,31 +92,66 @@ class Ha3dConfigEditor extends LitElement {
         justify-content: flex-end;
         margin-top: 16px;
       }
+      .section-title {
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
     `;
   }
 
   render() {
     return html`
       <div class="editor">
-        <div class="area-list">
-          <ha-icon-button
-            .path=${mdiPlus}
-            @click=${this._addArea}
-          ></ha-icon-button>
-          ${this.areas.map(
-            (area, index) => html`
-              <div
-                class="area-item ${this.selectedArea === area ? 'selected' : ''}"
-                @click=${() => this._selectArea(area)}
-              >
-                <span>${area.name || `区域 ${index + 1}`}</span>
-                <ha-icon-button
-                  .path=${mdiDelete}
-                  @click=${() => this._deleteArea(index)}
-                ></ha-icon-button>
-              </div>
-            `
-          )}
+        <div class="sidebar">
+          <div class="background-section">
+            <div class="section-title">底图设置</div>
+            <div
+              class="file-upload"
+              @dragover=${this._handleDragOver}
+              @dragleave=${this._handleDragLeave}
+              @drop=${(e) => this._handleBackgroundDrop(e)}
+              @click=${this._selectBackgroundFile}
+            >
+              ${this.backgroundImage
+                ? html`
+                    <img
+                      class="upload-preview"
+                      src=${this.backgroundImage}
+                    />
+                  `
+                : html`
+                    <p>点击或拖放上传底图</p>
+                    <input
+                      type="file"
+                      @change=${this._handleBackgroundSelect}
+                      accept="image/*"
+                      style="display: none"
+                    />
+                  `}
+            </div>
+          </div>
+
+          <div class="area-list">
+            <div class="section-title">区域管理</div>
+            <ha-icon-button
+              .path=${mdiPlus}
+              @click=${this._addArea}
+            ></ha-icon-button>
+            ${this.areas.map(
+              (area, index) => html`
+                <div
+                  class="area-item ${this.selectedArea === area ? 'selected' : ''}"
+                  @click=${() => this._selectArea(area)}
+                >
+                  <span>${area.name || `区域 ${index + 1}`}</span>
+                  <ha-icon-button
+                    .path=${mdiDelete}
+                    @click=${() => this._deleteArea(index)}
+                  ></ha-icon-button>
+                </div>
+              `
+            )}
+          </div>
         </div>
         
         ${this.selectedArea
@@ -210,8 +254,52 @@ class Ha3dConfigEditor extends LitElement {
       const response = await fetch('/api/ha3d/config');
       const config = await response.json();
       this.areas = config.areas || [];
+      this.backgroundImage = config.background_image || '/local/home/background.png';
     } catch (error) {
       console.error('Error loading config:', error);
+    }
+  }
+
+  _selectBackgroundFile(e) {
+    const input = this.renderRoot.querySelector('input[type="file"]');
+    input.click();
+  }
+
+  async _handleBackgroundSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+      await this._uploadBackground(file);
+    }
+  }
+
+  async _handleBackgroundDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      await this._uploadBackground(file);
+    }
+  }
+
+  async _uploadBackground(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'background');
+    
+    try {
+      const response = await fetch('/api/ha3d/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        this.backgroundImage = `/local/home/${result.filename}`;
+        await this._saveConfig();
+      }
+    } catch (error) {
+      console.error('Error uploading background:', error);
     }
   }
 
@@ -317,6 +405,7 @@ class Ha3dConfigEditor extends LitElement {
         },
         body: JSON.stringify({
           areas: this.areas,
+          background_image: this.backgroundImage,
         }),
       });
       

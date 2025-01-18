@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D户型图</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #container {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+        #background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 1;
+        }
+        .area-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 2;
+            pointer-events: none;
+        }
+        #editor {
+            flex: 1;
+            padding: 16px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <img id="background" />
+        <div id="areas"></div>
+    </div>
+    <div id="editor">
+        <ha3d-config-editor></ha3d-config-editor>
+    </div>
+
+    <script type="module" src="/local/ha3d/ha3d-panel.js"></script>
+    <script>
+        class Ha3dPanel extends HTMLElement {
+            constructor() {
+                super();
+                this._config = null;
+                this._areas = [];
+                this._backgroundImage = null;
+            }
+
+            connectedCallback() {
+                this._loadConfig();
+                this._setupEventListeners();
+            }
+
+            async _loadConfig() {
+                try {
+                    const response = await fetch('/api/ha3d/config');
+                    const config = await response.json();
+                    this._config = config;
+                    this._areas = config.areas || [];
+                    this._backgroundImage = config.background_image;
+                    this._updateDisplay();
+                } catch (error) {
+                    console.error('Error loading config:', error);
+                }
+            }
+
+            _setupEventListeners() {
+                window.addEventListener('ha3d-config-updated', () => {
+                    this._loadConfig();
+                });
+            }
+
+            _updateDisplay() {
+                // 更新背景图
+                const background = document.getElementById('background');
+                if (this._backgroundImage) {
+                    background.src = this._backgroundImage;
+                }
+
+                // 更新区域图片
+                const areasContainer = document.getElementById('areas');
+                areasContainer.innerHTML = '';
+
+                this._areas.forEach(area => {
+                    if (area.entity_id) {
+                        const img = document.createElement('img');
+                        img.className = 'area-image';
+                        img.src = `/local/home/${area.image_off}`;
+                        img.dataset.entityId = area.entity_id;
+                        img.dataset.imageOn = area.image_on;
+                        img.dataset.imageOff = area.image_off;
+                        areasContainer.appendChild(img);
+                    }
+                });
+            }
+        }
+
+        customElements.define('ha3d-panel', Ha3dPanel);
+    </script>
+</body>
+</html> 
