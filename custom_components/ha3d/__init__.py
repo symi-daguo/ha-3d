@@ -24,12 +24,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HA3D from a config entry."""
+    _LOGGER.debug("Setting up HA3D integration with entry: %s", entry.as_dict())
+    
     # 注册面板
     external_url = entry.data.get(CONF_EXTERNAL_URL)
+    _LOGGER.debug("Retrieved external URL from config entry: %s", external_url)
     
     # 确保URL是有效的
     if not external_url:
-        _LOGGER.error("No external URL configured")
+        _LOGGER.error("No external URL configured in entry data: %s", entry.data)
         return False
 
     # 注册面板
@@ -47,13 +50,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             },
             require_admin=False,
         )
-        _LOGGER.info(f"Successfully registered panel with URL: {external_url}")
+        _LOGGER.info("Successfully registered panel with URL: %s", external_url)
     except Exception as e:
-        _LOGGER.error(f"Failed to register panel: {str(e)}")
+        _LOGGER.error("Failed to register panel: %s", str(e))
         return False
 
     # 注册视图
     hass.http.register_view(Ha3dEntityView(hass))
+    _LOGGER.debug("Registered Ha3dEntityView")
 
     return True
 
@@ -64,7 +68,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         frontend.async_remove_panel(hass, DOMAIN)
         _LOGGER.info("Successfully removed panel")
     except Exception as e:
-        _LOGGER.error(f"Failed to remove panel: {str(e)}")
+        _LOGGER.error("Failed to remove panel: %s", str(e))
     return True
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
