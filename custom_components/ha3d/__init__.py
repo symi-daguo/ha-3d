@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.components import frontend
 
 from .const import DOMAIN, CONF_EXTERNAL_URL
 
@@ -33,7 +34,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # 注册面板
     try:
-        hass.components.frontend.async_register_built_in_panel(
+        frontend.async_register_built_in_panel(
+            hass,
             "iframe",
             "3D户型图",
             "mdi:floor-plan",
@@ -59,7 +61,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     # 移除面板
     try:
-        hass.components.frontend.async_remove_panel(DOMAIN)
+        frontend.async_remove_panel(hass, DOMAIN)
         _LOGGER.info("Successfully removed panel")
     except Exception as e:
         _LOGGER.error(f"Failed to remove panel: {str(e)}")
